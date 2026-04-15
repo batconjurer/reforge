@@ -1,0 +1,75 @@
+[package]
+name = "reforge"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89.0"
+
+[[bin]]
+name = "reforge-example"
+path = "bin/main.rs"
+
+[dependencies]
+clap = { version = "4.6.0" , features = ["derive"]}
+foundry-common = { path = "../foundry/crates/common"}
+forge = {path = "../foundry/crates/forge"}
+foundry-cli = {path = "../foundry/crates/cli"}
+foundry-compilers = { version = "0.19.14", default-features = false }
+foundry-config = {path = "../foundry/crates/config"}
+forge-lint= {path="../foundry/crates/lint"}
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["arbitrary_precision"] }
+solar = {package = "solar-compiler", version = "=0.1.8", default-features = false }
+soldeer-core = { version = "=0.10.0", features = ["serde"] }
+tracing = "0.1"
+eyre = "0.6.12"
+
+[patch.crates-io]
+## alloy
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-contract = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-eips = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-ens = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-json-rpc = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-network = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-network-primitives = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-pubsub = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-rpc-types-eth = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-rpc-types-trace = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-serde = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-signer = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-signer-ledger = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-signer-local = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-signer-trezor = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-transport = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-transport-http = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-transport-ipc = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy-transport-ws = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+alloy = { git = "https://github.com/alloy-rs/alloy", rev = "ffb020e2845321145181089948efe14f074bccd6" }
+
+## op-alloy
+op-alloy-consensus = { git = "https://github.com/foundry-rs/optimism", branch = "alloy-2.0" }
+op-alloy-network = { git = "https://github.com/foundry-rs/optimism", branch = "alloy-2.0" }
+op-alloy-rpc-types = { git = "https://github.com/foundry-rs/optimism", branch = "alloy-2.0" }
+op-alloy = { git = "https://github.com/foundry-rs/optimism", branch = "alloy-2.0" }
+alloy-op-evm = { git = "https://github.com/foundry-rs/optimism", branch = "alloy-2.0" }
+alloy-op-hardforks = { git = "https://github.com/foundry-rs/optimism", branch = "alloy-2.0" }
+
+## alloy-evm
+alloy-evm = { git = "https://github.com/alloy-rs/evm.git", branch = "alloy-2.0" }
+
+## revm
+revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors.git", branch = "alloy-2.0" }
+
+## foundry
+foundry-fork-db = { git = "https://github.com/foundry-rs/foundry-fork-db", branch = "main" }
+
+## solar
+solar = { package = "solar-compiler", git = "https://github.com/paradigmxyz/solar", rev = "530f129" }
+solar-interface = { package = "solar-interface", git = "https://github.com/paradigmxyz/solar", rev = "530f129" }
+solar-ast = { package = "solar-ast", git = "https://github.com/paradigmxyz/solar", rev = "530f129" }
+solar-sema = { package = "solar-sema", git = "https://github.com/paradigmxyz/solar", rev = "530f129" }

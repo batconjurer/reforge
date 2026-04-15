@@ -1,0 +1,10 @@
+[profile.default]
+src = '.'
+solc_version = '0.8.30'
+evm_version = 'shanghai'
+out = 'out'
+libs = ['lib']
+test = 'tests'
+bytecode_hash = "none"
+optimizer = true
+optimizer_runs = 200
