@@ -1,7 +1,7 @@
 /target
-./.idea
-./tests/sample_proj/cache/
-./tests/sample_proj/out/
-./cache
-./out
-./.claude
+/.idea
+/.claude
+/cache
+/out
+/tests/sample_proj/cache
+/tests/sample_proj/out

@@ -1,22 +1,20 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use solar::sema::hir::ContractKind;
-use solar::sema::Gcx;
 use reforge::{MacroRules, PreprocessingData};
+use solar::sema::Gcx;
+use solar::sema::hir::ContractKind;
 
-
-fn main() -> eyre::Result<()>{
+fn main() -> eyre::Result<()> {
     let mut macros = MacroRules::default();
     macros.rules.push(do_nothing);
     macros.rules.push(print_name);
     macros.run()
 }
 
-fn do_nothing(_: &Gcx, _ : &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()> {
+fn do_nothing(_: &Gcx, _: &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()> {
     Ok(())
 }
-
 
 /// A macro that adds a function for each struct definition that prints the struct name.
 /// The function is injected into the pre-existing `Library{name}` library.
@@ -25,10 +23,16 @@ fn print_name(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers:
     let mut insertions: HashMap<std::path::PathBuf, Vec<(usize, String)>> = HashMap::new();
 
     for struct_def in ctx.hir.structs() {
-        let Some(source) = ctx.sources.get(struct_def.source) else { continue };
-        let Some(path) = source.file.name.as_real() else { continue };
+        let Some(source) = ctx.sources.get(struct_def.source) else {
+            continue;
+        };
+        let Some(path) = source.file.name.as_real() else {
+            continue;
+        };
 
-        if !data.input.contains_key(path) { continue; }
+        if !data.input.contains_key(path) {
+            continue;
+        }
 
         let name = struct_def.name.name;
         let library_name = format!("Library{name}");
@@ -49,7 +53,10 @@ fn print_name(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers:
             "\n    function print_{name}() public pure returns (string memory) {{ return \"{name}\"; }}\n"
         );
         println!("Injecting function for struct {name} into {library_name}");
-        insertions.entry(path.to_path_buf()).or_default().push((close_brace_offset, func));
+        insertions
+            .entry(path.to_path_buf())
+            .or_default()
+            .push((close_brace_offset, func));
     }
 
     for (path, mut inserts) in insertions {

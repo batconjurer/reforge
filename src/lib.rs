@@ -57,8 +57,7 @@ pub struct MacroRules {
     pub rules: Vec<fn(&Gcx, &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()>>,
 }
 
-impl Debug for MacroRules
-{
+impl Debug for MacroRules {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MacroRules")
             .field("rules", &"<functions>")
@@ -66,13 +65,11 @@ impl Debug for MacroRules
     }
 }
 
-impl MacroRules
-{
+impl MacroRules {
     /// Runs the CLI. This should be used by downstream users as the main entry point of their
     /// program.
     pub fn run(self) -> eyre::Result<()> {
         setup()?;
-        foundry_cli::opts::GlobalArgs::check_markdown_help::<Forge>();
         let args = Reforge::parse();
         args.forge.global.init()?;
 
@@ -85,22 +82,16 @@ impl MacroRules
                     tracing::warn!(
                         "Dynamic linking is not supported with macros expansion, skipping."
                     );
-                    println!(
-                        "Dynamic linking is not supported with macros expansion, skipping."
-                    );
+                    println!("Dynamic linking is not supported with macros expansion, skipping.");
                 }
-                return args
-                    .forge
-                    .global
-                    .block_on(build::build(build_args, self));
+                return args.forge.global.block_on(build::build(build_args, self));
             }
         }
         forge::args::run_command(args.forge)
     }
 }
 
-impl Preprocessor<SolcCompiler> for MacroRules
-{
+impl Preprocessor<SolcCompiler> for MacroRules {
     fn preprocess(
         &self,
         _compiler: &SolcCompiler,
@@ -158,8 +149,7 @@ impl Preprocessor<SolcCompiler> for MacroRules
     }
 }
 
-impl Preprocessor<MultiCompiler> for MacroRules
-{
+impl Preprocessor<MultiCompiler> for MacroRules {
     fn preprocess(
         &self,
         compiler: &MultiCompiler,

@@ -26,8 +26,7 @@ use crate::project_compiler::ProjectCompiler;
 /// N.B. Only works for the solc compiler.
 /// N.B. If macro expansions are enabled, it is not currently supported to also use dynamic
 ///      test linking
-pub async fn build(build_args: BuildArgs, macros: crate::MacroRules) -> eyre::Result<()>
-{
+pub async fn build(build_args: BuildArgs, macros: crate::MacroRules) -> eyre::Result<()> {
     let mut config = build_args.load_config()?;
     if install::install_missing_dependencies(&mut config).await && config.auto_detect_remappings {
         // need to re-configure here to also catch additional remappings
@@ -106,8 +105,7 @@ fn lint(
                         .filter_map(|s| forge_lint::sol::SolLint::try_from(s.as_str()).ok())
                         .collect(),
                 )
-            })
-            .with_lint_specific(&config.lint.lint_specific);
+            });
 
         // Expand ignore globs and canonicalize from the get go
         let ignored = expand_globs(&config.root, config.lint.ignore.iter())?

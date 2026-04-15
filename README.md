@@ -6,6 +6,17 @@ Reforge is a Rust library that wraps [Forge](https://github.com/foundry-rs/found
 
 Reforge intercepts the Forge build pipeline at the preprocessing stage. Before `solc` sees your sources, each registered macro rule runs against the fully-parsed and type-resolved HIR (High-level Intermediate Representation) of the project. Rules can inspect any declaration in the project and inject or rewrite source text. The modified sources are then compiled as normal.
 
+## Getting started
+
+This repository includes [Foundry](https://github.com/foundry-rs/foundry) as a git submodule (pinned to `v1.6.0-rc1`). After cloning, initialise it before building:
+
+```sh
+git clone <repo-url>
+cd reforge
+git submodule update --init --recursive
+cargo build
+```
+
 ## Usage
 
 Reforge is a library. Downstream users write a small Rust binary that depends on it, define their macro rules, and call `MacroRules::run()` as their `main`. The resulting binary is a drop-in replacement for `forge build`.
