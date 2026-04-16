@@ -74,8 +74,14 @@ pub async fn build(build_args: BuildArgs, macros: crate::MacroRules) -> eyre::Re
 
     // Only run the `SolidityLinter` if lint on build and no compilation errors.
     if config.lint.lint_on_build && !output.output().errors.iter().any(|e| e.is_error()) {
-        lint(&project, &config, build_args.paths.as_deref(), &mut output, preprocessed_sources)
-            .wrap_err("Lint Failed")?;
+        lint(
+            &project,
+            &config,
+            build_args.paths.as_deref(),
+            &mut output,
+            preprocessed_sources,
+        )
+        .wrap_err("Lint Failed")?;
     }
     Ok(())
 }

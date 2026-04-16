@@ -29,10 +29,7 @@ use solar::sema::Gcx;
     about = "A tool for combining with Forge with macro expansions in Solidity.",
 )]
 pub struct Reforge {
-    #[arg(
-        long,
-        help = "Expand macros in the input files."
-    )]
+    #[arg(long, help = "Expand macros in the input files.")]
     pub expand_macros: bool,
     #[command(flatten)]
     pub forge: Forge,
