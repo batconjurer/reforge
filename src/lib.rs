@@ -1,6 +1,7 @@
 mod build;
 mod lockfile;
 mod project_compiler;
+mod test;
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
@@ -14,7 +15,6 @@ use forge::opts::{Forge, ForgeSubcommand};
 use foundry_common::errors::convert_solar_errors;
 use foundry_common::version::{LONG_VERSION, SHORT_VERSION};
 use foundry_compilers::artifacts::{SolcLanguage, Sources};
-use foundry_compilers::error::SolcError;
 use foundry_compilers::multi::{MultiCompiler, MultiCompilerInput};
 use foundry_compilers::project::Preprocessor;
 use foundry_compilers::solc::SolcCompiler;
@@ -30,7 +30,7 @@ use solar::sema::Gcx;
 )]
 pub struct Reforge {
     #[arg(long, help = "Expand macros in the input files.")]
-    pub expand_macros: bool,
+    pub disable_macros: bool,
     #[command(flatten)]
     pub forge: Forge,
 }
@@ -71,7 +71,7 @@ impl MacroRules {
         let args = Reforge::parse();
         args.forge.global.init()?;
 
-        if args.expand_macros {
+        if !args.disable_macros {
             if self.rules.is_empty() {
                 tracing::info!("No macros rules present, skipping macro expansion.");
                 println!("No macros rules present, skipping macro expansion.");
@@ -83,6 +83,8 @@ impl MacroRules {
                     println!("Dynamic linking is not supported with macros expansion, skipping.");
                 }
                 return args.forge.global.block_on(build::build(build_args, self));
+            } else if let ForgeSubcommand::Test(test_args) = args.forge.cmd {
+                return args.forge.global.block_on(test::test(test_args, self));
             }
         }
         forge::args::run_command(args.forge)
@@ -119,10 +121,7 @@ impl Preprocessor<SolcCompiler> for MacroRules {
 
             // Parse and preprocess.
             pcx.parse();
-            let ControlFlow::Continue(()) = compiler
-                .lower_asts()
-                .map_err(|_| SolcError::msg("Error lowing AST to HIR during pre-processing"))?
-            else {
+            let Ok(ControlFlow::Continue(())) = compiler.lower_asts() else {
                 return Ok(());
             };
             let mut prepocessing_data = PreprocessingData {
@@ -167,5 +166,40 @@ impl Preprocessor<MultiCompiler> for MacroRules {
 
         let paths = paths.clone().with_language::<SolcLanguage>();
         self.preprocess(solc, input, &paths, mocks)
+    }
+}
+
+/// Returns the comment immediately preceding the given HIR item, if any.
+///
+/// Walks backward from `span` in the source text and collects contiguous non-empty lines
+/// that form a comment block (`//` or `/* ... */`). Returns `None` if the preceding
+/// non-whitespace content is not a comment, or if the item's source is not in `data.input`.
+pub fn get_comment(
+    ctx: &Gcx,
+    source_id: solar::sema::hir::SourceId,
+    span: solar::interface::Span,
+    data: &PreprocessingData<'_>,
+) -> Option<String> {
+    let source = ctx.sources.get(source_id)?;
+    let path = source.file.name.as_real()?;
+    let source_text = data.input.get(path)?.content.as_str();
+    let struct_offset = (span.lo().0 - source.file.start_pos.0) as usize;
+
+    let before = &source_text[..struct_offset];
+    let mut comment_block = String::new();
+    // Walk backward over whitespace/newlines to find the preceding line(s)
+    for l in before.lines().rev() {
+        if l.trim().is_empty() {
+            break;
+        }
+        comment_block.insert_str(0, l);
+        if l.trim().starts_with("/*") {
+            break;
+        }
+    }
+    if comment_block.starts_with("//") || comment_block.starts_with("/*") {
+        Some(comment_block)
+    } else {
+        None
     }
 }

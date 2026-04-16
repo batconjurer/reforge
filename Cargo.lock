@@ -6818,6 +6818,7 @@ dependencies = [
  "foundry-common",
  "foundry-compilers",
  "foundry-config",
+ "regex",
  "serde",
  "serde_json",
  "solar-compiler",

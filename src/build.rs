@@ -143,8 +143,11 @@ fn lint(
             // `get_solar_sources_from_compile_output`, which uses `dunce::canonicalize`.
             let canonicalized: std::collections::BTreeMap<_, _> = preprocessed
                 .into_iter()
-                .filter_map(|(p, s)| std::fs::canonicalize(&p).ok().map(|cp| (cp, s)))
-                .collect();
+                .filter_map(|(p, s)| {
+                    let abs = if p.is_absolute() { p } else { project.root().join(&p) };
+                    std::fs::canonicalize(&abs).ok().map(|cp| (cp, s))
+                })
+                .collect::<std::collections::BTreeMap<_, _>>();
             for (path, source) in solar_sources.input.sources.iter_mut() {
                 if let Some(pre_source) = canonicalized.get(path) {
                     *source = pre_source.clone();

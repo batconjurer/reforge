@@ -4,6 +4,8 @@ solc_version = '0.8.30'
 evm_version = 'shanghai'
 out = 'out'
 libs = ['lib']
+remappings = ['forge-std/=lib/forge-std/src/']
+skip = ['lib/**']
 test = 'tests'
 bytecode_hash = "none"
 optimizer = true

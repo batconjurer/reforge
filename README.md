@@ -19,7 +19,7 @@ cargo build
 
 ## Usage
 
-Reforge is a library. Downstream users write a small Rust binary that depends on it, define their macro rules, and call `MacroRules::run()` as their `main`. The resulting binary is a drop-in replacement for `forge build`.
+Reforge is a library. Downstream users write a small Rust binary that depends on it, define their macro rules, and call `MacroRules::run()` as their `main`. The resulting binary is a drop-in replacement for `forge`, supporting both `build` and `test` subcommands with macro expansion applied automatically.
 
 ### 1. Define macro rules
 
@@ -45,7 +45,7 @@ fn main() -> eyre::Result<()> {
 }
 ```
 
-`run()` parses the CLI (all standard `forge build` flags are supported) and executes the build with your rules applied as a preprocessing step.
+`run()` parses the CLI and executes the command with your rules applied as a preprocessing step. Macro expansion is enabled by default. Pass `--disable-macros` to skip expansion and run as a plain `forge` wrapper.
 
 ### `PreprocessingData` fields
 
@@ -58,32 +58,37 @@ fn main() -> eyre::Result<()> {
 
 ## Example
 
-The `examples/` directory contains a working example. It defines a `print_name` macro that, for every `struct Foo` in the project, injects a `print_Foo()` function into a pre-declared `library LibraryFoo`.
+The `examples/` directory contains a working example. It defines a `print_name` macro that, for every `struct Foo` in the project, injects a `print_Foo()` function into a pre-declared `library FooLibrary`.
 
 ### Running the example against the sample project
 
-The sample project lives in `sample_proj/`. It contains a `Test` struct and an empty `LibraryTest` library.
+The sample project lives in `sample_proj/`. It contains a `Dummy` struct and an empty `DummyLibrary` library.
 
 From the repository root:
 
+**Build:**
 ```sh
-cargo run --example main -- --expand-macros build sample_proj --force
+cargo run --example main -- build --root sample_proj --force
 ```
 
-Expected output:
+**Test:**
+```sh
+cargo run --example main -- test --root sample_proj
+```
+
+Expected build output:
 
 ```
-Injecting function for struct Test into LibraryTest
-Compiling 1 files with Solc 0.8.30
+Compiling 11 files with Solc 0.8.30
 Compiler run successful!
 ```
 
-After compilation, `sample_proj/out/sample.sol/LibraryTest.json` will contain a `print_Test()` function in its ABI:
+After compilation, `sample_proj/out/Sample.sol/DummyLibrary.json` will contain a `print_Dummy()` function in its ABI (injected by the macro):
 
 ```json
 {
   "type": "function",
-  "name": "print_Test",
+  "name": "print_Dummy",
   "inputs": [],
   "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
   "stateMutability": "pure"
@@ -92,13 +97,23 @@ After compilation, `sample_proj/out/sample.sol/LibraryTest.json` will contain a 
 
 ## Known limitations and "gotchas"
 
+### Spurious errors during `test`
+
+When running tests, Solar (used internally by forge for source mapping) may print errors like:
+
+```
+error: unresolved symbol `print_Dummy`
+```
+
+These refer to symbols that macros will inject and are safe to ignore — they do not affect whether tests pass or fail.
+
 ### Free-standing functions are never emitted
 
 Solidity inlines free-standing functions (those declared outside any contract or library) at call sites. If no contract calls them, the compiler drops them entirely. Any function you want to appear in the compiled artifact must be injected inside a `contract` or `library` body.
 
 ### Dynamic test linking is not supported with macro expansion
 
-Forge's `--dynamic-test-linking` flag is incompatible with macro expansion and will be ignored if both are enabled.
+Forge's `--dynamic-test-linking` flag is incompatible with macro expansion and will be ignored if enabled.
 
 ### Artifacts are only generated for contracts known before preprocessing
 
