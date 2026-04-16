@@ -96,6 +96,10 @@ After compilation, `sample_proj/out/sample.sol/LibraryTest.json` will contain a 
 
 Solidity inlines free-standing functions (those declared outside any contract or library) at call sites. If no contract calls them, the compiler drops them entirely. Any function you want to appear in the compiled artifact must be injected inside a `contract` or `library` body.
 
+### Dynamic test linking is not supported with macro expansion
+
+Forge's `--dynamic-test-linking` flag is incompatible with macro expansion and will be ignored if both are enabled.
+
 ### Artifacts are only generated for contracts known before preprocessing
 
 Foundry discovers which contracts exist by scanning source files before the preprocessor runs. If a macro injects an entirely new `library` or `contract` declaration into a file, Foundry will compile it without errors but will not write a `.json` artifact for it. The workaround is to pre-declare an empty shell of every contract the macro will populate, so Foundry registers it during its initial scan.
