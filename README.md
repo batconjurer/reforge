@@ -62,12 +62,12 @@ The `examples/` directory contains a working example. It defines a `print_name` 
 
 ### Running the example against the sample project
 
-The sample project lives in `tests/sample_proj/`. It contains a `Test` struct and an empty `LibraryTest` library.
+The sample project lives in `sample_proj/`. It contains a `Test` struct and an empty `LibraryTest` library.
 
 From the repository root:
 
 ```sh
-cargo run --example main -- --expand-macros build tests/sample_proj --force
+cargo run --example main -- --expand-macros build sample_proj --force
 ```
 
 Expected output:
@@ -78,7 +78,7 @@ Compiling 1 files with Solc 0.8.30
 Compiler run successful!
 ```
 
-After compilation, `tests/sample_proj/out/sample.sol/LibraryTest.json` will contain a `print_Test()` function in its ABI:
+After compilation, `sample_proj/out/sample.sol/LibraryTest.json` will contain a `print_Test()` function in its ABI:
 
 ```json
 {
