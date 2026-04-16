@@ -5,4 +5,8 @@ struct Test {
     uint32 ID;
 }
 
-library LibraryTest {}
+library LibraryTest {
+    function sayHello() public pure returns (string memory) {
+        return print_Test();
+    }
+}

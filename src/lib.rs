@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use clap::Parser;
 use forge::args::setup;
@@ -30,7 +31,6 @@ use solar::sema::Gcx;
 pub struct Reforge {
     #[arg(
         long,
-        default_value_t = true,
         help = "Expand macros in the input files."
     )]
     pub expand_macros: bool,
@@ -55,6 +55,7 @@ pub struct PreprocessingData<'pre> {
 #[derive(Default, Clone)]
 pub struct MacroRules {
     pub rules: Vec<fn(&Gcx, &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()>>,
+    pub(crate) preprocessed_sources: Arc<Mutex<Option<Sources>>>,
 }
 
 impl Debug for MacroRules {
@@ -137,13 +138,14 @@ impl Preprocessor<SolcCompiler> for MacroRules {
             for rule in &self.rules {
                 rule(&gcx, &mut prepocessing_data)?;
             }
+            *self.preprocessed_sources.lock().unwrap() = Some(prepocessing_data.input.clone());
             Ok(())
         })?;
 
-        // Warn if any diagnostics emitted during content parsing.
-        if let Err(err) = convert_solar_errors(compiler.dcx()) {
-            tracing::warn!(%err, "failed preprocessing");
-        }
+        // Solar diagnostics during preprocessing are intentionally ignored: the source passed to
+        // Solar is the original, unmodified code, so references to symbols that macros will inject
+        // are expected to be unresolved at this stage.
+        let _ = convert_solar_errors(compiler.dcx());
 
         Ok(())
     }

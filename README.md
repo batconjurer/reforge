@@ -58,7 +58,7 @@ fn main() -> eyre::Result<()> {
 
 ## Example
 
-The `bin/` directory contains a working example. It defines a `print_name` macro that, for every `struct Foo` in the project, injects a `print_Foo()` function into a pre-declared `library LibraryFoo`.
+The `examples/` directory contains a working example. It defines a `print_name` macro that, for every `struct Foo` in the project, injects a `print_Foo()` function into a pre-declared `library LibraryFoo`.
 
 ### Running the example against the sample project
 
@@ -67,7 +67,7 @@ The sample project lives in `tests/sample_proj/`. It contains a `Test` struct an
 From the repository root:
 
 ```sh
-cargo run -- build --root tests/sample_proj --force
+cargo run --example main -- --expand-macros build tests/sample_proj --force
 ```
 
 Expected output:

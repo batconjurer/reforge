@@ -61,7 +61,9 @@ pub async fn build(build_args: BuildArgs, macros: crate::MacroRules) -> eyre::Re
         files,
     };
 
+    let preprocessed_sources = macros.preprocessed_sources.clone();
     let mut output = compiler.compile(&project, macros)?;
+    let preprocessed_sources = preprocessed_sources.lock().unwrap().take();
 
     // Cache project selectors.
     cache_local_signatures(&output)?;
@@ -72,8 +74,8 @@ pub async fn build(build_args: BuildArgs, macros: crate::MacroRules) -> eyre::Re
 
     // Only run the `SolidityLinter` if lint on build and no compilation errors.
     if config.lint.lint_on_build && !output.output().errors.iter().any(|e| e.is_error()) {
-        lint(&project, &config, build_args.paths.as_deref(), &mut output)
-            .wrap_err("Lint failed")?;
+        lint(&project, &config, build_args.paths.as_deref(), &mut output, preprocessed_sources)
+            .wrap_err("Lint Failed")?;
     }
     Ok(())
 }
@@ -83,6 +85,7 @@ fn lint(
     config: &Config,
     files: Option<&[PathBuf]>,
     output: &mut ProjectCompileOutput,
+    preprocessed_sources: Option<foundry_compilers::artifacts::Sources>,
 ) -> eyre::Result<()> {
     let format_json = shell::is_json();
     if project.compiler.solc.is_some() && !shell::is_quiet() {
@@ -127,8 +130,21 @@ fn lint(
             })
             .collect::<Vec<_>>();
 
-        let solar_sources =
+        let mut solar_sources =
             get_solar_sources_from_compile_output(config, output, Some(&input_files), None)?;
+        if let Some(preprocessed) = preprocessed_sources {
+            // Canonicalize preprocessed keys to match those produced by
+            // `get_solar_sources_from_compile_output`, which uses `dunce::canonicalize`.
+            let canonicalized: std::collections::BTreeMap<_, _> = preprocessed
+                .into_iter()
+                .filter_map(|(p, s)| std::fs::canonicalize(&p).ok().map(|cp| (cp, s)))
+                .collect();
+            for (path, source) in solar_sources.input.sources.iter_mut() {
+                if let Some(pre_source) = canonicalized.get(path) {
+                    *source = pre_source.clone();
+                }
+            }
+        }
         if solar_sources.input.sources.is_empty() {
             if !input_files.is_empty() {
                 sh_warn!("unable to lint. Solar only supports Solidity versions >=0.8.0")?;
