@@ -16,7 +16,8 @@ struct WrappedBytes {
 
 // #[derive(promote)]
 library DummyLibrary {
-    function sayHello() public pure returns (string memory) {
+    // #[derive(public)]
+    function sayHello() private pure returns (string memory) {
         string memory name = printDummy();
         return string.concat("Hello ", name);
     }

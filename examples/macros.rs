@@ -11,6 +11,7 @@ fn main() -> eyre::Result<()> {
     macros.rules.push(print_name);
     macros.rules.push(get_id_or_revert);
     macros.rules.push(make_libraries_contracts);
+    macros.rules.push(make_func_public);
     macros.run()
 }
 
@@ -61,15 +62,18 @@ fn print_name(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers:
             .push((close_brace_offset, func));
     }
 
+    let mut new_adjustments = vec![];
     for (path, mut inserts) in insertions {
         let src = data.input.get_mut(&path).unwrap();
         // Apply in reverse offset order so earlier positions aren't shifted.
         inserts.sort_by(|a, b| b.0.cmp(&a.0));
         let content = Arc::make_mut(&mut src.content);
-        for (offset, text) in inserts {
-            content.insert_str(offset, &text);
+        for (offset, text) in &inserts {
+            content.insert_str(*offset, text.as_str());
+            new_adjustments.push((path.clone(), *offset, text.len() as isize));
         }
     }
+    data.offset_adjustments.extend(new_adjustments);
     Ok(())
 }
 
@@ -140,14 +144,17 @@ fn get_id_or_revert(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_comp
             .push((close_brace_offset, func));
     }
 
+    let mut new_adjustments = vec![];
     for (path, mut inserts) in insertions {
         let src = data.input.get_mut(&path).unwrap();
         inserts.sort_by(|a, b| b.0.cmp(&a.0));
         let content = Arc::make_mut(&mut src.content);
-        for (offset, text) in inserts {
-            content.insert_str(offset, &text);
+        for (offset, text) in &inserts {
+            content.insert_str(*offset, text.as_str());
+            new_adjustments.push((path.clone(), *offset, text.len() as isize));
         }
     }
+    data.offset_adjustments.extend(new_adjustments);
 
     Ok(())
 }
@@ -173,6 +180,45 @@ fn make_libraries_contracts(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foun
             let lib_offset = (lib.span.lo().0 - source.file.start_pos.0) as usize;
             let content = Arc::make_mut(&mut src.content);
             content.replace_range(lib_offset..lib_offset + "library".len(), "contract");
+            // "contract" is 1 byte longer than "library"; record the shift so subsequent
+            // macro rules can adjust HIR-derived offsets within this file.
+            let delta = "contract".len() as isize - "library".len() as isize;
+            data.offset_adjustments.push((path.to_path_buf(), lib_offset, delta));
+        }
+    }
+    Ok(())
+}
+
+fn make_func_public(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()> {
+    for func in ctx.hir.functions() {
+        let Some(source) = ctx.sources.get(func.source) else {
+            continue;
+        };
+        let Some(path) = source.file.name.as_real() else {
+            continue;
+        };
+        let Some(comment_block) = get_comment(ctx, func.source, func.span, data) else {
+            continue;
+        };
+        if comment_block.contains("#[derive(public)]") {
+            let original_offset = (func.span.lo().0 - source.file.start_pos.0) as usize;
+            let func_offset = data.adjusted_offset(path, original_offset);
+            let Some(src) = data.input.get_mut(path) else {
+                continue;
+            };
+            let content = Arc::make_mut(&mut src.content);
+            let visibility_keyword = func.visibility.to_str();
+            // NOTE: `find` may match a false positive if the visibility keyword appears in a
+            // parameter name or string literal before the actual modifier. If this becomes an
+            // issue, narrow the search to the signature only (i.e. the text before the `{`).
+            let modifier_offset = func_offset + content[func_offset..]
+                .find(visibility_keyword)
+                .ok_or_else(|| SolcError::msg(
+                    format!("could not find visibility modifier '{visibility_keyword}' in function at offset {func_offset}")
+                ))?;
+            content.replace_range(modifier_offset..modifier_offset + visibility_keyword.len(), "public");
+            let delta = "public".len() as isize - visibility_keyword.len() as isize;
+            data.offset_adjustments.push((path.to_path_buf(), original_offset, delta));
         }
     }
     Ok(())
