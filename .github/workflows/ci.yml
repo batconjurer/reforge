@@ -21,7 +21,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.89.0"
+          toolchain: "1.91.0"
 
       - name: Cache cargo registry and build
         uses: actions/cache@v4
@@ -47,7 +47,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.89.0"
+          toolchain: "1.91.0"
           components: clippy
 
       - name: Cache cargo registry and build
@@ -72,7 +72,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.89.0"
+          toolchain: "1.91.0"
           components: rustfmt
 
       - name: Check formatting
