@@ -1,4 +1,12 @@
-# Reforge
+```
+_|_|_|    _|_|_|_|  _|_|_|_|    _|_|    _|_|_|      _|_|_|  _|_|_|_|
+_|    _|  _|        _|        _|    _|  _|    _|  _|        _|
+_|_|_|    _|_|_|    _|_|_|    _|    _|  _|_|_|    _|  _|_|  _|_|_|
+_|    _|  _|        _|        _|    _|  _|    _|  _|    _|  _|
+_|    _|  _|_|_|_|  _|          _|_|    _|    _|    _|_|_|  _|_|_|_|
+```
+
+![](assets/logo.jpg)
 
 Reforge is a Rust library that wraps [Forge](https://github.com/foundry-rs/foundry) with a macro expansion pipeline for Solidity. It lets you programmatically transform Solidity source files before they are handed to `solc`, using the full semantic analysis provided by [Solar](https://github.com/paradigmxyz/solar).
 
