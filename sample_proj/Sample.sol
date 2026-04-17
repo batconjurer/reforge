@@ -14,9 +14,10 @@ struct WrappedBytes {
     bytes inner;
 }
 
+// #[derive(promote)]
 library DummyLibrary {
     function sayHello() public pure returns (string memory) {
-        string memory name = print_Dummy();
+        string memory name = printDummy();
         return string.concat("Hello ", name);
     }
 }

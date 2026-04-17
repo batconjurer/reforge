@@ -10,6 +10,7 @@ fn main() -> eyre::Result<()> {
     macros.rules.push(do_nothing);
     macros.rules.push(print_name);
     macros.rules.push(get_id_or_revert);
+    macros.rules.push(make_libraries_contracts);
     macros.run()
 }
 
@@ -51,7 +52,7 @@ fn print_name(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers:
         // Insert just before the closing `}` of the library body.
         let close_brace_offset = (library.span.hi().0 - source.file.start_pos.0) as usize - 1;
         let func = format!(
-            "\n    function print_{name}() public pure returns (string memory) {{ return \"{name}\"; }}\n"
+            "\n    function print{name}() public pure returns (string memory) {{ return \"{name}\"; }}\n"
         );
         tracing::debug!("Injecting function for struct {name} into {library_name}");
         insertions
@@ -126,11 +127,11 @@ fn get_id_or_revert(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_comp
         let close_brace_offset = (library.span.hi().0 - source.file.start_pos.0) as usize - 1;
         let func = if has_id_field {
             format!(
-                "\n    function get_id_{}({name} memory obj) public pure returns (uint32) {{ return obj.ID; }}\n", name.as_str().to_ascii_lowercase(),
+                "\n    function getId{name}({name} memory obj) public pure returns (uint32) {{ return obj.ID; }}\n",
             )
         } else {
             format!(
-                "\n    function get_id_{}({name} memory obj) public pure returns (uint32) {{ revert(\"{name} has no field ID\"); }}\n", name.as_str().to_ascii_lowercase(),
+                "\n    function getId{name}({name} memory) public pure returns (uint32) {{ revert(\"{name} has no field ID\"); }}\n",
             )
         };
         insertions
@@ -148,5 +149,31 @@ fn get_id_or_revert(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_comp
         }
     }
 
+    Ok(())
+}
+
+/// A macro that changes all libraries into contracts if their doc comment contains
+/// #[derive(promote)].
+fn make_libraries_contracts(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()> {
+    for lib in ctx.hir.contracts().filter(|c| c.kind == ContractKind::Library) {
+        let Some(source) = ctx.sources.get(lib.source) else {
+            continue;
+        };
+        let Some(path) = source.file.name.as_real() else {
+            continue;
+        };
+        let Some(comment_block) = get_comment(ctx, lib.source, lib.span, data) else {
+            continue
+        };
+        let Some(src) = data.input.get_mut(path) else {
+            continue;
+        };
+
+        if comment_block.contains("#[derive(promote)]") {
+            let lib_offset = (lib.span.lo().0 - source.file.start_pos.0) as usize;
+            let content = Arc::make_mut(&mut src.content);
+            content.replace_range(lib_offset..lib_offset + "library".len(), "contract");
+        }
+    }
     Ok(())
 }
