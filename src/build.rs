@@ -144,7 +144,11 @@ fn lint(
             let canonicalized: std::collections::BTreeMap<_, _> = preprocessed
                 .into_iter()
                 .filter_map(|(p, s)| {
-                    let abs = if p.is_absolute() { p } else { project.root().join(&p) };
+                    let abs = if p.is_absolute() {
+                        p
+                    } else {
+                        project.root().join(&p)
+                    };
                     std::fs::canonicalize(&abs).ok().map(|cp| (cp, s))
                 })
                 .collect::<std::collections::BTreeMap<_, _>>();

@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::sync::Arc;
 use foundry_compilers::error::SolcError;
-use reforge::{get_comment, MacroRules, PreprocessingData};
+use reforge::{MacroRules, PreprocessingData, get_comment};
 use solar::sema::Gcx;
 use solar::sema::hir::ContractKind;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 fn main() -> eyre::Result<()> {
     let mut macros = MacroRules::default();
@@ -62,6 +62,8 @@ fn print_name(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers:
             .push((close_brace_offset, func));
     }
 
+    // In this example macro, we handle the offset adjustments manually. This is more efficient
+    // but more complicated that the provided helper methods.
     let mut new_adjustments = vec![];
     for (path, mut inserts) in insertions {
         let src = data.input.get_mut(&path).unwrap();
@@ -79,7 +81,10 @@ fn print_name(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers:
 
 /// A macro that adds a function to every struct that returns its ID if it has the field and reverts
 /// otherwise.
-fn get_id_or_revert(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()> {
+fn get_id_or_revert(
+    ctx: &Gcx,
+    data: &mut PreprocessingData<'_>,
+) -> foundry_compilers::error::Result<()> {
     // Collect (offset, injected_text) per file path.
     let mut insertions: HashMap<std::path::PathBuf, Vec<(usize, String)>> = HashMap::new();
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
@@ -100,12 +105,8 @@ fn get_id_or_revert(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_comp
 
         let name = struct_def.name.name;
 
-        let contract_name = if let Some(comment_block) = get_comment(
-            ctx,
-            struct_def.source,
-            struct_def.span,
-            data
-        )
+        let contract_name = if let Some(comment_block) =
+            get_comment(ctx, struct_def.source, struct_def.span, data)
         {
             if let Some(caps) = re.captures(&comment_block) {
                 caps[1].to_string()
@@ -116,15 +117,21 @@ fn get_id_or_revert(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_comp
             continue;
         };
         let has_id_field = struct_def.fields.iter().any(|&var_id| {
-            ctx.hir.variable(var_id).name.is_some_and(|n| n.name.as_str() == "ID")
+            ctx.hir
+                .variable(var_id)
+                .name
+                .is_some_and(|n| n.name.as_str() == "ID")
         });
 
         // Find the pre-existing contract named `contract_name` in the same source file.
-        let Some(library) = ctx.hir.contracts().find(|c| {
-            c.source == struct_def.source
-                && c.name.name.as_str() == contract_name
-        }) else {
-            return Err(SolcError::msg(format!("No library named {contract_name} found, macro expansion failed.")));
+        let Some(library) = ctx
+            .hir
+            .contracts()
+            .find(|c| c.source == struct_def.source && c.name.name.as_str() == contract_name)
+        else {
+            return Err(SolcError::msg(format!(
+                "No library named {contract_name} found, macro expansion failed."
+            )));
         };
 
         // Insert just before the closing `}` of the library body.
@@ -144,25 +151,28 @@ fn get_id_or_revert(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_comp
             .push((close_brace_offset, func));
     }
 
-    let mut new_adjustments = vec![];
-    for (path, mut inserts) in insertions {
-        let src = data.input.get_mut(&path).unwrap();
-        inserts.sort_by(|a, b| b.0.cmp(&a.0));
-        let content = Arc::make_mut(&mut src.content);
+    // In this example, we use the provided helper methods to insert the text and handle the
+    // offset adjustments automatically.
+    for (path, inserts) in insertions {
         for (offset, text) in &inserts {
-            content.insert_str(*offset, text.as_str());
-            new_adjustments.push((path.clone(), *offset, text.len() as isize));
+            data.insert(&path, *offset, text);
         }
     }
-    data.offset_adjustments.extend(new_adjustments);
 
     Ok(())
 }
 
 /// A macro that changes all libraries into contracts if their doc comment contains
 /// #[derive(promote)].
-fn make_libraries_contracts(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()> {
-    for lib in ctx.hir.contracts().filter(|c| c.kind == ContractKind::Library) {
+fn make_libraries_contracts(
+    ctx: &Gcx,
+    data: &mut PreprocessingData<'_>,
+) -> foundry_compilers::error::Result<()> {
+    for lib in ctx
+        .hir
+        .contracts()
+        .filter(|c| c.kind == ContractKind::Library)
+    {
         let Some(source) = ctx.sources.get(lib.source) else {
             continue;
         };
@@ -170,12 +180,13 @@ fn make_libraries_contracts(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foun
             continue;
         };
         let Some(comment_block) = get_comment(ctx, lib.source, lib.span, data) else {
-            continue
+            continue;
         };
         let Some(src) = data.input.get_mut(path) else {
             continue;
         };
 
+        // Compute the offsets adjustments manually.
         if comment_block.contains("#[derive(promote)]") {
             let lib_offset = (lib.span.lo().0 - source.file.start_pos.0) as usize;
             let content = Arc::make_mut(&mut src.content);
@@ -183,13 +194,19 @@ fn make_libraries_contracts(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foun
             // "contract" is 1 byte longer than "library"; record the shift so subsequent
             // macro rules can adjust HIR-derived offsets within this file.
             let delta = "contract".len() as isize - "library".len() as isize;
-            data.offset_adjustments.push((path.to_path_buf(), lib_offset, delta));
+            data.offset_adjustments
+                .push((path.to_path_buf(), lib_offset, delta));
         }
     }
     Ok(())
 }
 
-fn make_func_public(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()> {
+/// A macro that changes the visibility of functions to public if their doc comment contains
+/// #[derive(public)].
+fn make_func_public(
+    ctx: &Gcx,
+    data: &mut PreprocessingData<'_>,
+) -> foundry_compilers::error::Result<()> {
     for func in ctx.hir.functions() {
         let Some(source) = ctx.sources.get(func.source) else {
             continue;
@@ -200,25 +217,29 @@ fn make_func_public(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_comp
         let Some(comment_block) = get_comment(ctx, func.source, func.span, data) else {
             continue;
         };
+
+        // Use convenience methods to compute offset adjustments automatically.
         if comment_block.contains("#[derive(public)]") {
             let original_offset = (func.span.lo().0 - source.file.start_pos.0) as usize;
             let func_offset = data.adjusted_offset(path, original_offset);
-            let Some(src) = data.input.get_mut(path) else {
+            let Some(src) = data.input.get(path) else {
                 continue;
             };
-            let content = Arc::make_mut(&mut src.content);
             let visibility_keyword = func.visibility.to_str();
             // NOTE: `find` may match a false positive if the visibility keyword appears in a
             // parameter name or string literal before the actual modifier. If this becomes an
             // issue, narrow the search to the signature only (i.e. the text before the `{`).
-            let modifier_offset = func_offset + content[func_offset..]
+            let modifier_local_offset = src.content[func_offset..]
                 .find(visibility_keyword)
                 .ok_or_else(|| SolcError::msg(
                     format!("could not find visibility modifier '{visibility_keyword}' in function at offset {func_offset}")
                 ))?;
-            content.replace_range(modifier_offset..modifier_offset + visibility_keyword.len(), "public");
-            let delta = "public".len() as isize - visibility_keyword.len() as isize;
-            data.offset_adjustments.push((path.to_path_buf(), original_offset, delta));
+            let original_modifier_start = original_offset + modifier_local_offset;
+            data.replace(
+                path,
+                original_modifier_start..original_modifier_start + visibility_keyword.len(),
+                "public",
+            );
         }
     }
     Ok(())

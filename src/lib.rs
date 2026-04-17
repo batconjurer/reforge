@@ -57,11 +57,66 @@ impl PreprocessingData<'_> {
     /// accounting for all length-changing edits recorded by previous macro rules. This is done
     /// by summing all offset deltas affecting the source code prior to the input `original_offset`.
     pub fn adjusted_offset(&self, path: &Path, original_offset: usize) -> usize {
-        let delta: isize = self.offset_adjustments.iter()
+        let delta: isize = self
+            .offset_adjustments
+            .iter()
             .filter(|(p, edit_offset, _)| p == path && *edit_offset <= original_offset)
             .map(|(_, _, delta)| delta)
             .sum();
         (original_offset as isize + delta) as usize
+    }
+
+    /// Inserts `text` into the source file at `path` at the position corresponding to
+    /// `original_offset` in the original, unmodified source, and records the edit in
+    /// [`PreprocessingData::offset_adjustments`] so that subsequent macro rules remain correct.
+    ///
+    /// `original_offset` must be a byte offset derived from a Solar HIR span (i.e. relative to
+    /// the unmodified source). The method translates it to the current position in the
+    /// already-modified text before performing the insertion.
+    pub fn insert(
+        &mut self,
+        path: impl AsRef<Path>,
+        original_offset: usize,
+        text: impl AsRef<str>,
+    ) {
+        let path = path.as_ref();
+        let adjusted = self.adjusted_offset(path, original_offset);
+        let src = self.input.get_mut(path).unwrap();
+        let content = Arc::make_mut(&mut src.content);
+        content.insert_str(adjusted, text.as_ref());
+        self.offset_adjustments.push((
+            path.to_path_buf(),
+            original_offset,
+            text.as_ref().len() as isize,
+        ));
+    }
+
+    /// Replaces the source bytes at `original_range` (in the original, unmodified file) with
+    /// `text`, and records the resulting length delta in `offset_adjustments` so that subsequent
+    /// calls using offsets derived from the original source remain correct.
+    ///
+    /// Both range endpoints are translated through any previously recorded adjustments before the
+    /// replacement is applied, so overlapping or out-of-order edits to the same file are handled
+    /// correctly. Does nothing if `original_range` is empty or inverted.
+    pub fn replace(
+        &mut self,
+        path: impl AsRef<Path>,
+        original_range: std::ops::Range<usize>,
+        text: impl AsRef<str>,
+    ) {
+        let path = path.as_ref();
+        if original_range.end <= original_range.start {
+            return;
+        }
+        let adjusted_start = self.adjusted_offset(path, original_range.start);
+        let adjusted_end = self.adjusted_offset(path, original_range.end);
+        let src = self.input.get_mut(path).unwrap();
+        let content = Arc::make_mut(&mut src.content);
+        content.replace_range(adjusted_start..adjusted_end, text.as_ref());
+        let delta =
+            text.as_ref().len() as isize - (original_range.end - original_range.start) as isize;
+        self.offset_adjustments
+            .push((path.to_path_buf(), original_range.start, delta));
     }
 }
 
@@ -204,7 +259,10 @@ pub fn get_comment(
     let original_offset = (span.lo().0 - source.file.start_pos.0) as usize;
     let adjusted = data.adjusted_offset(path, original_offset);
     // Walk back to the start of the line
-    let line_start = source_text[..adjusted].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let line_start = source_text[..adjusted]
+        .rfind('\n')
+        .map(|i| i + 1)
+        .unwrap_or(0);
     let before = &source_text[..line_start];
     let mut comment_block = String::new();
     // Walk backward over whitespace/newlines to find the preceding line(s)

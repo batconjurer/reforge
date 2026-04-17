@@ -1,10 +1,10 @@
+use crate::project_compiler::ProjectCompiler;
 use forge::cmd::{install, test::TestArgs};
 use foundry_cli::utils::LoadConfig;
 use foundry_common::shell;
-use crate::project_compiler::ProjectCompiler;
 
 pub async fn test(mut test_args: TestArgs, macros: crate::MacroRules) -> eyre::Result<()> {
-    let silent  = test_args.junit || shell::is_json();
+    let silent = test_args.junit || shell::is_json();
     let (mut config, evm_opts) = test_args.load_config_and_evm_opts()?;
 
     if install::install_missing_dependencies(&mut config).await && config.auto_detect_remappings {
@@ -31,7 +31,14 @@ pub async fn test(mut test_args: TestArgs, macros: crate::MacroRules) -> eyre::R
     let output = compiler.compile(&project, macros)?;
 
     let outcome = test_args
-        .run_tests(&project.paths.root, config, evm_opts, &output, &filter, false)
+        .run_tests(
+            &project.paths.root,
+            config,
+            evm_opts,
+            &output,
+            &filter,
+            false,
+        )
         .await?;
 
     outcome.ensure_ok(silent)

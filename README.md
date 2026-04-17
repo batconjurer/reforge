@@ -6,6 +6,7 @@ _|    _|  _|        _|        _|    _|  _|    _|  _|    _|  _|
 _|    _|  _|_|_|_|  _|          _|_|    _|    _|    _|_|_|  _|_|_|_|
 </pre>
 
+
 <div align="center">
 
 ![](assets/logo.jpg)
@@ -71,26 +72,42 @@ fn main() -> eyre::Result<()> {
 
 ### Tracking offset adjustments
 
-Solar's HIR spans reference byte positions in the **original, unmodified** source. When an earlier macro inserts or removes text, every subsequent HIR-derived offset in that file is wrong by the cumulative amount of those edits.
+Solar's HIR spans reference byte positions in the **original, unmodified** source. When an earlier macro inserts or removes text, every subsequent HIR-derived offset in that file is wrong by the cumulative amount of those edits. Reforge provides both automatic and manual ways to handle this.
 
-To keep later macros correct, every rule that changes the length of a source file must record its edits in `data.offset_adjustments`. Each entry is `(path, original_offset, delta)`, where `original_offset` is the position at which the edit occurred (in original source coordinates) and `delta` is the signed change in length (positive for insertions, negative for deletions).
+#### Automatic (recommended)
 
-Later macros then call `data.adjusted_offset(path, original_offset)` instead of using the HIR byte position directly. That method sums all recorded deltas whose `original_offset` is ≤ the queried position, returning the correct current position in the already-modified text.
+Use `data.insert` and `data.replace` instead of editing `data.input` directly. Both methods translate original-source offsets through prior adjustments, apply the edit, and record the delta automatically:
+
+```rust
+// Insert text at an original-source offset:
+data.insert(path, original_offset, "new text");
+
+// Replace a range given in original-source coordinates:
+data.replace(path, original_start..original_end, "replacement");
+```
+
+Because the bookkeeping is handled internally, you do not need to touch `data.offset_adjustments` at all.
+
+#### Manual
+
+If you need direct access to the underlying string (e.g. to scan content before deciding what to edit), you can edit `data.input` yourself and push adjustments by hand. Each entry in `data.offset_adjustments` is `(path, original_offset, delta)`, where `original_offset` is the position of the edit in original source coordinates and `delta` is the signed change in byte length (positive for insertions, negative for deletions).
 
 ```rust
 // After inserting `text` at `offset` in the source:
-content.insert_str(offset, &text);
-data.offset_adjustments.push((path.clone(), offset, text.len() as isize));
+content.insert_str(adjusted_offset, &text);
+data.offset_adjustments.push((path.clone(), original_offset, text.len() as isize));
 
-// After replacing a keyword with one of different length:
-content.replace_range(range.clone(), replacement);
-let delta = replacement.len() as isize - (range.end - range.start) as isize;
-data.offset_adjustments.push((path.clone(), range.start, delta));
+// After replacing a range with text of a different length:
+content.replace_range(adjusted_start..adjusted_end, replacement);
+let delta = replacement.len() as isize - (original_end - original_start) as isize;
+data.offset_adjustments.push((path.clone(), original_start, delta));
 ```
 
-Note that because `data.input` is borrowed mutably during the edit loop, you cannot push to `data.offset_adjustments` at the same time. Collect adjustments into a local `Vec` inside the loop and extend `data.offset_adjustments` after the loop releases the borrow.
+In both cases, call `data.adjusted_offset(path, original_offset)` to translate an original-source position into its current position in the already-modified text before performing the edit.
 
-More complex examples of tracking offset adjustments across multiple macro rules can be found in `examples/macros.rs`.
+Note that because `data.input` is borrowed mutably during an edit, you cannot push to `data.offset_adjustments` at the same time. Collect adjustments into a local `Vec` inside the loop and extend `data.offset_adjustments` after the borrow is released.
+
+More complex examples of both approaches can be found in `examples/macros.rs`.
 
 ## Example
 
