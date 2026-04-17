@@ -141,7 +141,7 @@ After compilation, `sample_proj/out/Sample.sol/DummyLibrary.json` will contain a
 ```json
 {
   "type": "function",
-  "name": "print_Dummy",
+  "name": "printDummy",
   "inputs": [],
   "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
   "stateMutability": "pure"
@@ -155,7 +155,7 @@ After compilation, `sample_proj/out/Sample.sol/DummyLibrary.json` will contain a
 When running tests, Solar (used internally by forge for source mapping) may print errors like:
 
 ```
-error: unresolved symbol `print_Dummy`
+error: unresolved symbol `printDummy`
 ```
 
 These refer to symbols that macros will inject and are safe to ignore — they do not affect whether tests pass or fail.
