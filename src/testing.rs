@@ -57,9 +57,9 @@ pub fn test_macros(
         let relative_path = actual_path.strip_prefix(source).unwrap();
         let expected_path = expected.join(relative_path);
         let actual_formatted = crate::display::format_sol(actual_src.content.as_str());
-        let matches = expected_sources
-            .get(&expected_path)
-            .is_some_and(|exp| actual_formatted == crate::display::format_sol(exp.content.as_str()));
+        let matches = expected_sources.get(&expected_path).is_some_and(|exp| {
+            actual_formatted == crate::display::format_sol(exp.content.as_str())
+        });
         if !matches {
             failures.push((relative_path.to_path_buf(), actual_formatted));
         }
