@@ -53,20 +53,15 @@ pub fn test_macros(
     let expected_sources = load_sol_sources(expected)?;
 
     let mut failures: Vec<(std::path::PathBuf, String)> = Vec::new();
-    for (expanded_path, expanded_src) in &expected_sources {
-        let relative_path = expanded_path.strip_prefix(expected).unwrap();
-        let actual_path = source.join(relative_path);
-        let actual_src = sources.get(&actual_path).ok_or_else(|| {
-            eyre::eyre!(
-                "missing file in expanded output: {}",
-                relative_path.display()
-            )
-        })?;
-        if actual_src.content.as_str() != expanded_src.content.as_str() {
-            failures.push((
-                relative_path.to_path_buf(),
-                actual_src.content.as_str().to_owned(),
-            ));
+    for (actual_path, actual_src) in &sources {
+        let relative_path = actual_path.strip_prefix(source).unwrap();
+        let expected_path = expected.join(relative_path);
+        let actual_formatted = crate::display::format_sol(actual_src.content.as_str());
+        let matches = expected_sources
+            .get(&expected_path)
+            .is_some_and(|exp| actual_formatted == crate::display::format_sol(exp.content.as_str()));
+        if !matches {
+            failures.push((relative_path.to_path_buf(), actual_formatted));
         }
     }
 

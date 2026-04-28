@@ -306,7 +306,8 @@ pub fn get_comment(
             break;
         }
     }
-    if comment_block.starts_with("//") || comment_block.starts_with("/*") {
+    let trimmed = comment_block.trim_start();
+    if trimmed.starts_with("//") || trimmed.starts_with("/*") {
         Some(comment_block)
     } else {
         None

@@ -14,6 +14,7 @@ forge = { path = "foundry/crates/forge" }
 foundry-cli = { path = "foundry/crates/cli" }
 foundry-compilers = { version = "0.19.14", default-features = false }
 foundry-config = { path = "foundry/crates/config" }
+forge-fmt = { path = "foundry/crates/fmt" }
 forge-lint = { path = "foundry/crates/lint" }
 glob = "0.3"
 regex = "1.12.3"

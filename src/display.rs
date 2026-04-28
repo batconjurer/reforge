@@ -8,6 +8,14 @@ use glob::MatchOptions;
 use crate::Macro;
 use crate::testing::expand_macros;
 
+/// Formats a Solidity source string using the default `forge fmt` config.
+/// Falls back to the original string if formatting fails.
+pub fn format_sol(source: &str) -> String {
+    forge_fmt::format(source, forge_fmt::FormatterConfig::default())
+        .into_ok()
+        .unwrap_or_else(|_| source.to_string())
+}
+
 /// Expands `macro_rules` over the Solidity sources in `source`, then prints
 /// the content of every file whose path (relative to `source`) matches `glob`
 /// to stdout. Files are printed in alphabetical order, each preceded by a
@@ -48,7 +56,7 @@ pub fn display_sources(root: &Path, glob: &str, sources: &Sources) -> eyre::Resu
 
     for (relative, content) in &matched {
         println!("=== {} ===", relative.display());
-        println!("{content}");
+        println!("{}", format_sol(content.as_str()));
     }
 
     Ok(())

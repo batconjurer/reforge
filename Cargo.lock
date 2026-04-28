@@ -6813,6 +6813,7 @@ dependencies = [
  "clap",
  "eyre",
  "forge",
+ "forge-fmt",
  "forge-lint",
  "foundry-cli",
  "foundry-common",
