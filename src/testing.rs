@@ -39,7 +39,7 @@ fn load_sol_sources_recursive(dir: &Path, sources: &mut Sources) -> eyre::Result
 /// On mismatch, the actual expanded content is written to `mismatches` (mirroring
 /// the same relative path structure) so testers can inspect the output and copy
 /// it to `expected` if it is correct.
-pub fn test_macro(
+pub fn test_macros(
     source: impl AsRef<Path>,
     expected: impl AsRef<Path>,
     mismatches: impl AsRef<Path>,
@@ -56,11 +56,17 @@ pub fn test_macro(
     for (expanded_path, expanded_src) in &expected_sources {
         let relative_path = expanded_path.strip_prefix(expected).unwrap();
         let actual_path = source.join(relative_path);
-        let actual_src = sources
-            .get(&actual_path)
-            .ok_or_else(|| eyre::eyre!("missing file in expanded output: {}", relative_path.display()))?;
+        let actual_src = sources.get(&actual_path).ok_or_else(|| {
+            eyre::eyre!(
+                "missing file in expanded output: {}",
+                relative_path.display()
+            )
+        })?;
         if actual_src.content.as_str() != expanded_src.content.as_str() {
-            failures.push((relative_path.to_path_buf(), actual_src.content.as_str().to_owned()));
+            failures.push((
+                relative_path.to_path_buf(),
+                actual_src.content.as_str().to_owned(),
+            ));
         }
     }
 
@@ -72,7 +78,10 @@ pub fn test_macro(
             }
             std::fs::write(&snapshot_path, content)?;
         }
-        let paths: Vec<_> = failures.iter().map(|(p, _)| p.display().to_string()).collect();
+        let paths: Vec<_> = failures
+            .iter()
+            .map(|(p, _)| p.display().to_string())
+            .collect();
         eyre::bail!(
             "macro expansion mismatch in: {}\nActual output written to '{}' — copy to '{}' if correct.",
             paths.join(", "),
@@ -87,10 +96,7 @@ pub fn test_macro(
 /// Runs `macro_rules` over the Solidity sources in `source` and expects at the
 /// rule to return an error. Returns the error if one is produced, else fails
 /// if the rule completes without error.
-pub fn test_macro_err(
-    source: impl AsRef<Path>,
-    macro_rule: Macro,
-) -> eyre::Result<eyre::Report> {
+pub fn test_macro_err(source: impl AsRef<Path>, macro_rule: Macro) -> eyre::Result<eyre::Report> {
     match expand_macros(source, None, &[macro_rule]) {
         Err(e) => Ok(e),
         Ok(_) => eyre::bail!("expected macro to error but it succeeded"),

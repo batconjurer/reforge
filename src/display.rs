@@ -33,10 +33,13 @@ pub fn display_sources(root: &Path, glob: &str, sources: &Sources) -> eyre::Resu
         .filter_map(|(path, src)| {
             let relative = path.strip_prefix(root).ok()?;
             pattern
-                .matches_path_with(relative, MatchOptions {
-                    require_literal_separator: true,
-                    ..Default::default()
-                })
+                .matches_path_with(
+                    relative,
+                    MatchOptions {
+                        require_literal_separator: true,
+                        ..Default::default()
+                    },
+                )
                 .then_some((relative.to_path_buf(), src.content.clone()))
         })
         .collect();

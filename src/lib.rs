@@ -1,8 +1,8 @@
 mod build;
+pub mod display;
 mod lockfile;
 mod project_compiler;
 mod test;
-pub mod display;
 pub mod testing;
 
 use std::collections::HashSet;
@@ -184,10 +184,7 @@ impl MacroRules {
         forge::args::run_command(args.forge)
     }
 
-    fn expand_for_display(
-        &self,
-        build_args: BuildArgs,
-    ) -> eyre::Result<(PathBuf, Sources)> {
+    fn expand_for_display(&self, build_args: BuildArgs) -> eyre::Result<(PathBuf, Sources)> {
         let config = build_args.load_config()?;
         let project = config.project()?;
         let root = project.root().to_path_buf();
