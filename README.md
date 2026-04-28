@@ -128,10 +128,10 @@ Tests are structured around three directories:
 | `expected/` | Pre-expanded `.sol` files to compare against |
 | `mismatches/` | Written on failure: the actual expanded output, ready to copy to `expected/` if correct |
 
-### `test_macro` — assert correct output
+### `test_macros` — assert correct output
 
 ```rust
-reforge::testing::test_macro(
+reforge::testing::test_macros(
     "tests/source",
     "tests/expected",
     "tests/mismatches",
