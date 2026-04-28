@@ -58,7 +58,12 @@ fn main() -> eyre::Result<()> {
 }
 ```
 
-`run()` parses the CLI and executes the command with your rules applied as a preprocessing step. Macro expansion is enabled by default. Pass `--disable-macros` to skip expansion and run as a plain `forge` wrapper.
+`run()` parses the CLI and executes the command with your rules applied as a preprocessing step. Macro expansion is enabled by default. Two reforge-specific flags are available on top of all standard `forge` flags:
+
+| Flag | Description |
+|---|---|
+| `--disable-macros` | Skip macro expansion and run as a plain `forge` wrapper. |
+| `--display <GLOB>` | Print macro-expanded sources matching `GLOB` (relative to the build root) to stdout and exit. Only supported with the `build` subcommand. |
 
 ### `PreprocessingData` fields
 
@@ -109,6 +114,50 @@ Note that because `data.input` is borrowed mutably during an edit, you cannot pu
 
 More complex examples of both approaches can be found in `examples/macros.rs`.
 
+## Testing
+
+Reforge provides utilities in `reforge::testing` for writing unit tests against macro rules without needing a full Forge project.
+
+### Directory layout
+
+Tests are structured around three directories:
+
+| Directory | Purpose |
+|---|---|
+| `source/` | Input `.sol` files (read-only — macros run against a copy) |
+| `expected/` | Pre-expanded `.sol` files to compare against |
+| `mismatches/` | Written on failure: the actual expanded output, ready to copy to `expected/` if correct |
+
+### `test_macro` — assert correct output
+
+```rust
+reforge::testing::test_macro(
+    "tests/source",
+    "tests/expected",
+    "tests/mismatches",
+    &[rule1, rule2, ...],
+)?;
+```
+
+Runs the rules in order and compares the expanded sources against `expected/` file-by-file (matched by relative path). On any mismatch the actual content is written to `mismatches/` and the call returns an error listing the differing files. To accept new output, copy `mismatches/` over `expected/`.
+
+### `test_macro_err` — assert that a rule errors
+
+```rust
+let err = reforge::testing::test_macro_err("tests/source", my_rule)?;
+assert!(err.to_string().contains("expected error message"));
+```
+
+Expects the rule to return an error. Returns the error as an `eyre::Report` so you can assert on its message. Fails if the rule completes without error.
+
+### `expand_macros` — low-level expansion
+
+```rust
+let sources = reforge::testing::expand_macros("tests/source", &[my_rule])?;
+```
+
+Runs the rules and returns the expanded `Sources` map directly, for cases where you need custom assertions beyond file equality.
+
 ## Example
 
 The `examples/` directory contains a working example. It defines a `print_name` macro that, for every `struct Foo` in the project, injects a `print_Foo()` function into a pre-declared `library FooLibrary`.
@@ -121,13 +170,20 @@ From the repository root:
 
 **Build:**
 ```sh
-cargo run --example main -- build --root sample_proj --force
+cargo run --example macros -- build --root sample_proj --force
 ```
 
 **Test:**
 ```sh
-cargo run --example main -- test --root sample_proj
+cargo run --example macros -- test --root sample_proj
 ```
+
+**Display expanded output:**
+```sh
+cargo run --example macros -- --display "*.sol" build --root sample_proj
+```
+
+This prints the macro-expanded content of every `.sol` file directly under `sample_proj/` to stdout. The glob is matched relative to the root with path-separator-aware rules: `*` does not cross directory boundaries, so `*.sol` matches only root-level files (e.g. `Sample.sol`) while `**/*.sol` matches recursively across all subdirectories.
 
 Expected build output:
 

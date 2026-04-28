@@ -2,6 +2,8 @@ mod build;
 mod lockfile;
 mod project_compiler;
 mod test;
+pub mod display;
+pub mod testing;
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
@@ -11,7 +13,9 @@ use std::sync::{Arc, Mutex};
 
 use clap::Parser;
 use forge::args::setup;
+use forge::cmd::build::BuildArgs;
 use forge::opts::{Forge, ForgeSubcommand};
+use foundry_cli::utils::LoadConfig;
 use foundry_common::errors::convert_solar_errors;
 use foundry_common::version::{LONG_VERSION, SHORT_VERSION};
 use foundry_compilers::artifacts::{SolcLanguage, Sources};
@@ -29,11 +33,21 @@ use solar::sema::Gcx;
     about = "A tool for combining with Forge with macro expansions in Solidity.",
 )]
 pub struct Reforge {
-    #[arg(long, help = "Expand macros in the input files.")]
+    #[arg(long, help = "Disable macro expansion.")]
     pub disable_macros: bool,
+    /// Print macro-expanded sources whose paths (relative to the build root)
+    /// match this glob pattern, then exit. Only supported with the `build`
+    /// subcommand.
+    #[arg(long, value_name = "GLOB")]
+    pub display: Option<String>,
     #[command(flatten)]
     pub forge: Forge,
 }
+
+/// A macro rule function: takes the global compiler context and mutable preprocessing data,
+/// and returns a result.
+pub type Macro =
+    fn(ctx: &Gcx, data: &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()>;
 
 /// The data passed to implementations of the `Preprocessor` trait.
 #[derive(Debug)]
@@ -123,7 +137,7 @@ impl PreprocessingData<'_> {
 /// A collection of macro rules which will be executed as a `Preprocessor`
 #[derive(Default, Clone)]
 pub struct MacroRules {
-    pub rules: Vec<fn(&Gcx, &mut PreprocessingData<'_>) -> foundry_compilers::error::Result<()>>,
+    pub rules: Vec<Macro>,
     pub(crate) preprocessed_sources: Arc<Mutex<Option<Sources>>>,
 }
 
@@ -143,6 +157,14 @@ impl MacroRules {
         let args = Reforge::parse();
         args.forge.global.init()?;
 
+        if let Some(glob) = args.display {
+            let ForgeSubcommand::Build(build_args) = args.forge.cmd else {
+                panic!("--display is only supported with the `build` subcommand");
+            };
+            let (root, sources) = self.expand_for_display(build_args)?;
+            return display::display_sources(&root, &glob, &sources);
+        }
+
         if !args.disable_macros {
             if self.rules.is_empty() {
                 tracing::info!("No macros rules present, skipping macro expansion.");
@@ -160,6 +182,18 @@ impl MacroRules {
             }
         }
         forge::args::run_command(args.forge)
+    }
+
+    fn expand_for_display(
+        &self,
+        build_args: BuildArgs,
+    ) -> eyre::Result<(PathBuf, Sources)> {
+        let config = build_args.load_config()?;
+        let project = config.project()?;
+        let root = project.root().to_path_buf();
+        let paths = project.paths.clone().with_language::<SolcLanguage>();
+        let sources = testing::expand_macros(&root, Some(&paths), &self.rules)?;
+        Ok((root, sources))
     }
 }
 
