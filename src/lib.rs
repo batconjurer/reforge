@@ -298,11 +298,15 @@ pub fn get_comment(
     let mut comment_block = String::new();
     // Walk backward over whitespace/newlines to find the preceding line(s)
     for l in before.lines().rev() {
-        if l.trim().is_empty() {
+        let trimmed = l.trim();
+        if trimmed.is_empty() {
+            break;
+        }
+        if !trimmed.starts_with("//") && !trimmed.starts_with("/*") {
             break;
         }
         comment_block.insert_str(0, l);
-        if l.trim().starts_with("/*") {
+        if trimmed.starts_with("/*") {
             break;
         }
     }
