@@ -19,6 +19,13 @@ pub(crate) fn load_sol_sources(dir: &Path) -> eyre::Result<Sources> {
 }
 
 fn load_sol_sources_recursive(dir: &Path, sources: &mut Sources) -> eyre::Result<()> {
+    if dir.is_file() {
+        if dir.extension().is_some_and(|e| e == "sol") {
+            let src = Source::read(dir).map_err(|e| eyre::eyre!("{e}"))?;
+            sources.insert(dir.to_path_buf(), src);
+        }
+        return Ok(());
+    }
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
