@@ -296,17 +296,27 @@ pub fn get_comment(
         .unwrap_or(0);
     let before = &source_text[..line_start];
     let mut comment_block = String::new();
+    let mut in_block_comment = false;
     // Walk backward over whitespace/newlines to find the preceding line(s)
     for l in before.lines().rev() {
         let trimmed = l.trim();
         if trimmed.is_empty() {
             break;
         }
-        if !trimmed.starts_with("//") && !trimmed.starts_with("/*") {
-            break;
-        }
-        comment_block.insert_str(0, l);
-        if trimmed.starts_with("/*") {
+        if in_block_comment {
+            comment_block.insert_str(0, l);
+            if trimmed.starts_with("/*") {
+                break;
+            }
+        } else if trimmed.starts_with("//") {
+            comment_block.insert_str(0, l);
+        } else if trimmed.ends_with("*/") {
+            in_block_comment = true;
+            comment_block.insert_str(0, l);
+            if trimmed.starts_with("/*") {
+                break;
+            }
+        } else {
             break;
         }
     }
