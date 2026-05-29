@@ -118,8 +118,22 @@ pub fn expand_macros(
     macro_rules: &[Macro],
 ) -> eyre::Result<Sources> {
     let source = source.as_ref();
-    let mut sources = load_sol_sources(source)?;
+    let sources = load_sol_sources(source)?;
+    expand_macros_with_sources(sources, source, paths, macro_rules)
+}
 
+/// Runs `macro_rules` over a pre-loaded [`Sources`] map and returns the expanded result.
+///
+/// Unlike [`expand_macros`], this does not load files from disk — callers supply the
+/// sources directly. `root` is used as [`PreprocessingData::root_dir`].  When `paths`
+/// is `Some`, Solar is initialised with the provided `ProjectPathsConfig` so that
+/// Foundry remappings are resolved correctly for any imports that solar needs to follow.
+pub fn expand_macros_with_sources(
+    mut sources: Sources,
+    root: &Path,
+    paths: Option<&ProjectPathsConfig<SolcLanguage>>,
+    macro_rules: &[Macro],
+) -> eyre::Result<Sources> {
     let mut compiler = match paths {
         Some(paths) => {
             foundry_compilers::resolver::parse::SolParser::new(paths.with_language_ref())
@@ -154,12 +168,12 @@ pub fn expand_macros(
                     relative_paths_storage = paths.paths_relative();
                     &relative_paths_storage.sources
                 }
-                None => source,
+                None => root,
             };
             let mut mocks = HashSet::new();
             let mut data = PreprocessingData {
                 input: &mut sources,
-                root_dir: source,
+                root_dir: root,
                 src_dir,
                 mocks: &mut mocks,
                 offset_adjustments: Vec::new(),

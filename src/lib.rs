@@ -189,8 +189,12 @@ impl MacroRules {
         let project = config.project()?;
         let root = project.root().to_path_buf();
         let paths = project.paths.clone().with_language::<SolcLanguage>();
-        let sources = testing::expand_macros(&root, Some(&paths), &self.rules)?;
-        Ok((root, sources))
+        // Read only the project's own source files (not lib/) so that solar's HIR lowering
+        // succeeds.  Import resolution is handled by SolParser's remapping-aware file loader.
+        let sources = project.paths.read_input_files()?;
+        let expanded =
+            testing::expand_macros_with_sources(sources, &root, Some(&paths), &self.rules)?;
+        Ok((root, expanded))
     }
 }
 
